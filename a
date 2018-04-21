@@ -1,13 +1,15 @@
 import pandas as pd
+import numpy as np
 import lightgbm as lgb
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import log_loss
 from sklearn import preprocessing
 import warnings
-from sklearn.linear_model.logistic import LogisticRegression
 
-import xgboost as xgb
 warnings.filterwarnings("ignore")
 
 import time
+
 
 def timestamp_datetime(value):
     format = '%Y-%m-%d %H:%M:%S'
@@ -84,6 +86,7 @@ def deliver1(x):
     else:
         return 3
 
+
 def review(x):
     # x=round(x,6)
     jiange = 0.02
@@ -102,6 +105,7 @@ def review1(x):
     else:
         return 3
 
+
 def service(x):
     #x=round(x,6)
     jiange=0.1
@@ -118,6 +122,7 @@ def service1(x):
         return 2
     else:
         return 3
+
 
 def describe(x):
     #x=round(x,6)
@@ -170,10 +175,21 @@ def shop_fenduan(data):
     data['normal_shop'] = data.apply(
         lambda x: 1 if (x.deliver_map == 3) & (x.service_map == 3) & (x.de_map == 3) & (x.review_map == 3) else 0,
         axis=1)
+    del data['de_map']
+    del data['service_map']
+    del data['deliver_map']
+    del data['review_map']
     return data
 
 
 def slide_cnt(data):
+    # item_cnt = data.groupby(by='item_id').count()['instance_id'].to_dict()
+    # data['item_cnt'] = data['item_id'].apply(lambda x: item_cnt[x])
+    # user_cnt = data.groupby(by='user_id').count()['instance_id'].to_dict()
+    # data['user_cnt'] = data['user_id'].apply(lambda x: user_cnt[x])
+    # shop_cnt = data.groupby(by='shop_id').count()['instance_id'].to_dict()
+    # data['shop_cnt'] = data['shop_id'].apply(lambda x: shop_cnt[x])
+
     print('当前日期前一天的cnt')
     for d in range(19, 26):  # 18到24号
         df1 = data[data['day'] == d - 1]
@@ -207,18 +223,11 @@ def slide_cnt(data):
         else:
             Df2 = pd.concat([df2, Df2])
     data = pd.merge(data, Df2, on=['instance_id'], how='left')
+
     print("前一个小时的统计量")
+
     return data
 
-def shop_score(data) :
-    print('统计出每个店铺的最低分和平均分')
-    data['shop_min_score'] = data[['shop_score_service','shop_score_delivery',
-        'shop_score_description']].min(1)
-    data['shop_avg_score'] = data[['shop_score_service','shop_score_delivery',
-        'shop_score_description','shop_review_positive_rate']].mean(1)
-    lbl = preprocessing.LabelEncoder()
-    data['instance_id_encode'] = lbl.fit_transform(data['instance_id'])
-    return data
 
 def zuhe(data):
     for col in ['user_gender_id','user_age_level','user_occupation_id','user_star_level']:
@@ -474,74 +483,102 @@ def shop_item(data):
     #     data[str(col) + '_shop_star_prob'] = data[str(col) + '_shop_star_cnt'] / data['shop_star_cnt']
     # del data['shop_star_cnt']
     return data
-if __name__ == "__main__":
-#    train = pd.read_csv("train.txt", sep="\s+")
-#    test = pd.read_csv("test.txt", sep="\s+")
-#    data = pd.concat([train, test])
-#    print('make feature')
-#    data = base_process(data)
-#    data=shijian(data)
-#    data=shop_fenduan(data)
-#    data = slide_cnt(data)
-#    data = shop_score(data)
-#    data = zuhe(data)
-#    print('----------------------------全局统计特征---------------------------------------------------')
-#    data = item(data)
-#    data = user(data)
-#    data = user_item(data)
-#    data = user_shop(data)
-#    data=shop_item(data)
-#    data.drop(['item_category_list','item_property_list',
-#               'predict_category_property'],axis = 1,inplace=True)
-#    data.drop_duplicates(subset='instance_id',inplace = True)
-#    data.drop_duplicates(subset=['context_timestamp','user_id'],inplace = True)
-#    data.fillna(0,inplace = True)
-#    data.to_csv('proData_All.csv',index=False)  #保存处理后的数据，一劳永逸
-#    del data
-    
-    data = pd.read_csv("proData_All.csv")
-    data.fillna(0,inplace = True)
-    train = data[(data['day'] >= 18) & (data['day'] <= 24)]#train用18-23日的数据，剩下的一天用来local cv
-    test = data[(data['day'] == 25)]
-    
+
+
+def lgbCV(train, test):
     col = [c for c in train if
-               c not in ['is_trade', 'item_category_list', 'item_property_list', 'predict_category_property',
-                         'context_id', 'realtime', 'context_timestamp']]
-    train_X = train[col]
-    train_y = train['is_trade'].values
-    test_X = test[col]
+           c not in ['is_trade', 'item_category_list', 'item_property_list', 'predict_category_property', 'instance_id',
+                     'context_id', 'realtime', 'context_timestamp']]
+    # cat = ['sale_price', 'gender_star', 'user_age_level', 'item_price_level', 'item_sales_level', 'sale_collect',
+    #        'price_collect', 'item_brand_id', 'user_star_level', 'item_id', 'shop_id',
+    #        'item_city_id', 'context_page_id', 'gender_age', 'shop_star_level', 'item_pv_level', 'user_occupation_id',
+    #        'day', 'gender_occ', 'user_gender_id']
+    X = train[col]
+    y = train['is_trade'].values
+    X_tes = test[col]
+    y_tes = test['is_trade'].values
+    print('Training LGBM model...')
     lgb0 = lgb.LGBMClassifier(
-            objective='binary',
-            num_leaves=35,
-            depth=8,
-            learning_rate=0.01,
-            seed=2018,
-            colsample_bytree=0.8,
-            subsample=0.9,
-            n_estimators=500)
-    lgb_model = lgb0.fit(train_X, train_y)
-    
-    # 预测及logloss评测
-    y_pred_lgb = lgb0.predict_proba(test_X.as_matrix())[:, 1]
-    
-    
-    #xgboost
-    xgb0 = xgb.XGBClassifier(learning_rate=0.01,n_estimators=400, max_depth=6, gamma=0, subsample=0.8, colsample_bytree=0.8)
-    xgb_model = xgb0.fit(train_X, train_y)
-    
-    # 预测及logloss评测
-    y_pred_xgb = xgb_model.predict_proba(test_X)[:, 1]
-    
-    # lr对原始特征样本模型训练
-    lr = LogisticRegression(n_jobs=-1,C=0.05,penalty='l1',tol=0.00001)
-    lr.fit(train_X, train_y)  
-    # 预测及AUC评测
-    y_pred_lr = lr.predict_proba(test_X)[:, 1]
-    pred = y_pred_lgb*0.4+y_pred_xgb*0.4+y_pred_lr*0.2    
+        objective='binary',
+        # metric='binary_error',
+        num_leaves=35,
+        depth=8,
+        learning_rate=0.05,
+        seed=2018,
+        colsample_bytree=0.8,
+        # min_child_samples=8,
+        subsample=0.9,
+        n_estimators=20000)
+    lgb_model = lgb0.fit(X, y, eval_set=[(X_tes, y_tes)], early_stopping_rounds=200)
+    best_iter = lgb_model.best_iteration_
+    predictors = [i for i in X.columns]
+    feat_imp = pd.Series(lgb_model.feature_importance(), predictors).sort_values(ascending=False)
+    print(feat_imp)
+    print(feat_imp.shape)
+    # pred= lgb_model.predict(test[col])
+    pred = lgb_model.predict_proba(test[col])[:, 1]
+    test['pred'] = pred
+    test['index'] = range(len(test))
+    # print(test[['is_trade','pred']])
+    print('误差 ', log_loss(test['is_trade'], test['pred']))
+    return best_iter
+
+def sub(train, test, best_iter):
+    col = [c for c in train if
+           c not in ['is_trade', 'item_category_list', 'item_property_list', 'predict_category_property', 'instance_id',
+                     'context_id', 'realtime', 'context_timestamp']]
+    X = train[col]
+    y = train['is_trade'].values
+    print('Training LGBM model...')
+    lgb0 = lgb.LGBMClassifier(
+        objective='binary',
+        # metric='binary_error',
+        num_leaves=35,
+        depth=8,
+        learning_rate=0.05,
+        seed=2018,
+        colsample_bytree=0.8,
+        # min_child_samples=8,
+        subsample=0.9,
+        n_estimators=best_iter)
+    lgb_model = lgb0.fit(X, y)
+    predictors = [i for i in X.columns]
+    feat_imp = pd.Series(lgb_model.feature_importance(), predictors).sort_values(ascending=False)
+    print(feat_imp)
+    print(feat_imp.shape)
+    # pred= lgb_model.predict(test[col])
+    pred = lgb_model.predict_proba(test[col])[:, 1]
     test['predicted_score'] = pred
     sub1 = test[['instance_id', 'predicted_score']]
-    sub=pd.read_csv("test.txt", sep="\s+")
+    sub=pd.read_csv("input/test.txt", sep="\s+")
     sub=pd.merge(sub,sub1,on=['instance_id'],how='left')
-    sub=sub.fillna(0.016271)
+    sub=sub.fillna(0)
     #sub[['instance_id', 'predicted_score']].to_csv('result/result0320.csv',index=None,sep=' ')
-    sub[['instance_id', 'predicted_score']].to_csv('result0421.txt',sep=" ",index=False)
+    sub[['instance_id', 'predicted_score']].to_csv('result/result0326.txt',sep=" ",index=False)
+
+
+if __name__ == "__main__":
+    train = pd.read_csv("input/train.txt", sep="\s+")
+    test = pd.read_csv("input/test.txt", sep="\s+")
+    data = pd.concat([train, test])
+    data = data.drop_duplicates(subset='instance_id')  # 把instance id去重
+    print('make feature')
+    data = base_process(data)
+    data=shijian(data)
+    data=shop_fenduan(data)
+    data = slide_cnt(data)
+    data = zuhe(data)
+    print('----------------------------全局统计特征---------------------------------------------------')
+    data = item(data)
+    data = user(data)
+    data = user_item(data)
+    data = user_shop(data)
+    data=shop_item(data)
+    "----------------------------------------------------线下----------------------------------------"
+    train= data[(data['day'] >= 18) & (data['day'] <= 23)]
+    test= data[(data['day'] == 24)]
+    best_iter = lgbCV(train, test)
+    "----------------------------------------------------线上----------------------------------------"
+    train = data[data.is_trade.notnull()]
+    test = data[data.is_trade.isnull()]
+    sub(train, test, best_iter)
