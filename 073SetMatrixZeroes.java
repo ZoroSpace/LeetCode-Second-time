@@ -25,3 +25,34 @@ class Solution {
         }
     }
 }
+
+class Solution {
+    public void setZeroes(int[][] a) {
+        if(a.length == 0 || a[0].length == 0) return;
+        boolean fr = false,fc = false;
+        int m = a.length,n = a[0].length;
+        for(int i = 0;i < m;i++) {
+            for(int j = 0;j < n;j++) {
+                if(a[i][j] == 0) {
+                    if(i == 0) fr = true;
+                    if(j == 0) fc = true;
+                    a[i][0] = 0;
+                    a[0][j] = 0;
+                }
+            }
+        }
+        
+        for(int i = 1;i < m;i++) {
+            for(int j = 1;j < n;j++) {
+                if(a[i][0] == 0 || a[0][j] == 0) a[i][j] = 0;
+            }
+        }
+        
+        if(fc) {
+            for(int i = 0;i < m;i++) a[i][0] = 0;
+        }
+        if(fr) {
+            for(int j = 0;j < n;j++) a[0][j] = 0;
+        }
+    }
+}
