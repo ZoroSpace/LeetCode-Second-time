@@ -45,3 +45,36 @@ class Solution {
         return false;
     }
 }
+
+
+class Solution {
+    public boolean wordBreak(String s, List<String> wordDict) {
+        HashMap<Integer,HashSet<Integer>> map = new HashMap<>();
+        int n = s.length();
+        boolean[][] visited = new boolean[n+1][n+1];
+        for(int i = 1;i <= n;i++) {
+            HashSet<Integer> set = new HashSet<>();
+            for(String s1 : wordDict) {
+                if(i-s1.length() >= 0 && s.substring(i-s1.length(),i).equals(s1)) {
+                    set.add(i-s1.length());
+                    visited[i][i-s1.length()] = true;
+                }
+            }
+            map.put(i,set);
+        }
+        return helper(map,s.length(),visited);
+    }
+    
+    boolean helper(HashMap<Integer,HashSet<Integer>> map,int index,boolean[][] visited) {
+        HashSet<Integer> set = map.get(index);
+        if(set.contains(0)) return true;
+        for(int i : set) {
+            if(visited[index][i]) {
+                visited[index][i] = false;
+                if(helper(map,i,visited)) return true;
+            }
+        }
+        return false;
+    }
+    
+}
