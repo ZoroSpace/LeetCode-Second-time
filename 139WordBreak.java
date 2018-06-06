@@ -76,5 +76,18 @@ class Solution {
         }
         return false;
     }
-    
+}
+
+class Solution {
+    public boolean wordBreak(String s, List<String> wordDict) {
+        int n = s.length();
+        boolean[] dp = new boolean[n+1];
+        dp[n] = true;
+        for(int i = n;i > 0;i--) {
+            for(int j = 0;j < i;j++) {
+                if(dp[i] && wordDict.contains(s.substring(j,i))) dp[j] = true;
+            }
+        }
+        return dp[0];
+    }
 }
