@@ -39,3 +39,40 @@ public class Solution {
         
     }
 }
+
+/**
+ * Definition for undirected graph.
+ * class UndirectedGraphNode {
+ *     int label;
+ *     List<UndirectedGraphNode> neighbors;
+ *     UndirectedGraphNode(int x) { label = x; neighbors = new ArrayList<UndirectedGraphNode>(); }
+ * };
+ */
+public class Solution {
+    public UndirectedGraphNode cloneGraph(UndirectedGraphNode node) {
+        if(node == null) return null;
+        HashMap<Integer,UndirectedGraphNode> map = new HashMap<>();
+        HashSet<Integer> visited = new HashSet<>();
+        LinkedList<UndirectedGraphNode> q = new LinkedList<>();
+        q.offerLast(node);
+        while(q.size() != 0) {
+            int size = q.size();
+            for(int i = 0;i < size;i++) {
+                UndirectedGraphNode n = q.pollFirst();
+                if(visited.contains(n.label)) continue;
+                visited.add(n.label);
+                UndirectedGraphNode nn = map.containsKey(n.label)?map.get(n.label):new UndirectedGraphNode(n.label);
+                map.put(n.label,nn);
+                List<UndirectedGraphNode> oldneibor = n.neighbors;
+                for(UndirectedGraphNode u : oldneibor) {
+                    
+                    q.offerLast(u);
+                    UndirectedGraphNode uu = map.containsKey(u.label)?map.get(u.label):new UndirectedGraphNode(u.label);
+                    nn.neighbors.add(uu);
+                    map.put(uu.label,uu);
+                }
+            }
+        }
+        return map.get(node.label);
+    }
+}
