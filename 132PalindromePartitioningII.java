@@ -51,3 +51,23 @@ class Solution {
         return ans[n-1];
     }
 }
+
+
+class Solution {
+    public int minCut(String s) {
+        int n = s.length();
+        boolean[] pal = new boolean[n];
+        int[] ans = new int[n];
+        for(int i = 0;i < n;i++) ans[i] = i;
+        for(int i = 0;i < n;i++) {
+            for(int j = 0;j <= i;j++) {
+                if(i == j || (s.charAt(i) == s.charAt(j) && (i == j+1 || pal[j+1]))) {
+                    pal[j] = true;
+                    if(j == 0) ans[i] = 0;
+                    else ans[i] = Math.min(ans[i],ans[j-1]+1);
+                } else pal[j] = false;
+            }
+        }
+        return ans[n-1];
+    }
+}
