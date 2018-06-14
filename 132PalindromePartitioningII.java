@@ -31,3 +31,23 @@ class Solution {
     }
     
 }
+
+
+class Solution {
+    public int minCut(String s) {
+        int n = s.length();
+        boolean[][] pal = new boolean[n][n];
+        int[] ans = new int[n];
+        for(int i = 0;i < n;i++) ans[i] = i;
+        for(int i = 0;i < n;i++) {
+            for(int j = 0;j <= i;j++) {
+                if(i == j || (s.charAt(i) == s.charAt(j) && (pal[i-1][j+1] || i == j+1))) {
+                    pal[i][j] = true;//从j到i是回文
+                    if(j == 0) ans[i] = 0;
+                    else ans[i] = Math.min(ans[i],ans[j-1]+1);
+                }
+            }
+        }
+        return ans[n-1];
+    }
+}
